@@ -16,7 +16,6 @@
       <section id="activities-container">
         <h3>Available Activities</h3>
         <div id="activities-list">
-          <!-- Activities will be loaded here -->
           <p>Loading activities...</p>
         </div>
       </section>
@@ -32,8 +31,7 @@
             <label for="activity">Select Activity:</label>
             <select id="activity" required>
               <option value="">-- Select an activity --</option>
-              <!-- Activity options will be loaded here -->
-            </select>
+              </select>
           </div>
           <button type="submit">Sign Up</button>
         </form>
@@ -44,6 +42,29 @@
     <footer>
       <p>&copy; 2023 Mergington High School</p>
     </footer>
+
+    <template id="activity-card-template">
+      <div class="activity-card">
+        <h3 class="activity-name"></h3>
+        <p><strong>Schedule:</strong> <span class="activity-schedule"></span></p>
+        <p><strong>Availability:</strong> <span class="activity-spots"></span> spots left</p>
+        <div class="participants-section">
+          <strong>Participants:</strong>
+          <ul class="participants-list"></ul>
+        </div>
+      </div>
+    </template>
+
+    <template id="participant-item-template">
+      <li class="participant-item">
+        <span class="participant-email"></span>
+        <button class="delete-participant-btn" title="Remove participant">&#128465;</button>
+      </li>
+    </template>
+
+    <template id="no-participants-template">
+      <li class="no-participants">No participants yet</li>
+    </template>
 
     <script src="app.js"></script>
   </body>

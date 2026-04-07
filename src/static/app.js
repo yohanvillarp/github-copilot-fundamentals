@@ -4,83 +4,123 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
-  // Function to fetch activities from API
+  // Referencias a los Templates del HTML
+  const cardTemplate = document.getElementById("activity-card-template");
+  const participantTemplate = document.getElementById("participant-item-template");
+  const noParticipantTemplate = document.getElementById("no-participants-template");
+
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      // FIX 1: 'no-store' obliga al navegador a no usar caché, arreglando el problema de refresco.
+      const response = await fetch("/activities", { cache: "no-store" });
       const activities = await response.json();
 
-      // Clear loading message
       activitiesList.innerHTML = "";
+      activitySelect.innerHTML = '<option value="" disabled selected>Select an activity</option>';
 
-      // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
+        // 1. Clonar el template de la tarjeta
+        const cardClone = cardTemplate.content.cloneNode(true);
+        
+        // 2. Llenar los datos básicos
+        const spotsLeft = details.capacity - details.participants.length;
+        cardClone.querySelector(".activity-name").textContent = name;
+        cardClone.querySelector(".activity-schedule").textContent = details.schedule;
+        cardClone.querySelector(".activity-spots").textContent = spotsLeft;
 
-        const spotsLeft = details.max_participants - details.participants.length;
+        // 3. Manejar la lista de participantes
+        const ul = cardClone.querySelector(".participants-list");
 
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-        `;
+        if (details.participants.length > 0) {
+          details.participants.forEach(email => {
+            // Clonar template de participante
+            const participantClone = participantTemplate.content.cloneNode(true);
+            participantClone.querySelector(".participant-email").textContent = email;
+            
+            // Configurar el botón de borrar
+            const deleteBtn = participantClone.querySelector(".delete-participant-btn");
+            deleteBtn.dataset.activity = name;
+            deleteBtn.dataset.email = email;
 
-        activitiesList.appendChild(activityCard);
+            ul.appendChild(participantClone);
+          });
+        } else {
+          // Si no hay participantes, clonar el mensaje vacío
+          const noPartClone = noParticipantTemplate.content.cloneNode(true);
+          ul.appendChild(noPartClone);
+        }
 
-        // Add option to select dropdown
+        // 4. Inyectar al DOM
+        activitiesList.appendChild(cardClone);
+
+        // 5. Poblar el Select
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
       });
     } catch (error) {
-      activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
+      activitiesList.innerHTML = "<p>Failed to load activities.</p>";
       console.error("Error fetching activities:", error);
     }
   }
 
-  // Handle form submission
+  // --- FUNCIÓN DE ELIMINAR ACTUALIZADA ---
+  activitiesList.addEventListener("click", async (event) => {
+    const deleteBtn = event.target.closest(".delete-participant-btn");
+    if (!deleteBtn) return;
+
+    const activityName = deleteBtn.dataset.activity;
+    const email = deleteBtn.dataset.email;
+
+    if (confirm(`Are you sure you want to remove ${email} from ${activityName}?`)) {
+      try {
+        // FIX 2: Muchos backends usan la misma ruta de registro pero con método DELETE
+        const response = await fetch(
+          `/activities/${encodeURIComponent(activityName)}/signup?email=${encodeURIComponent(email)}`,
+          { method: "DELETE" } 
+        );
+
+        if (response.ok) {
+          // FIX 3: Actualización optimista de la UI (borra el elemento visualmente al instante)
+          deleteBtn.closest('.participant-item').remove();
+          fetchActivities(); // Asegura sincronización
+        } else {
+          alert(`Error del Servidor: No se pudo eliminar a ${email}. Revisa la consola o el backend.`);
+        }
+      } catch (error) {
+        console.error("Error removing participant:", error);
+      }
+    }
+  });
+
+  // --- MANEJO DEL FORMULARIO ---
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-
     const email = document.getElementById("email").value;
     const activity = document.getElementById("activity").value;
 
     try {
       const response = await fetch(
         `/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       );
 
       const result = await response.json();
+      messageDiv.textContent = result.message || result.detail;
+      messageDiv.className = response.ok ? "success" : "error";
+      messageDiv.classList.remove("hidden");
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
         signupForm.reset();
-      } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        fetchActivities(); 
       }
 
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
+      setTimeout(() => messageDiv.classList.add("hidden"), 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to sign up. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
     }
   });
 
-  // Initialize app
   fetchActivities();
 });
