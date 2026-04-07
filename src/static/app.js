@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
 
+  // Referencias a los Templates del HTML
+  const cardTemplate = document.getElementById("activity-card-template");
+  const participantTemplate = document.getElementById("participant-item-template");
+  const noParticipantTemplate = document.getElementById("no-participants-template");
+
   async function fetchActivities() {
     try {
       // FIX 1: 'no-store' obliga al navegador a no usar caché, arreglando el problema de refresco.
@@ -14,43 +19,41 @@ document.addEventListener("DOMContentLoaded", () => {
       activitySelect.innerHTML = '<option value="" disabled selected>Select an activity</option>';
 
       Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
-
+        // 1. Clonar el template de la tarjeta
+        const cardClone = cardTemplate.content.cloneNode(true);
+        
+        // 2. Llenar los datos básicos
         const spotsLeft = details.capacity - details.participants.length;
+        cardClone.querySelector(".activity-name").textContent = name;
+        cardClone.querySelector(".activity-schedule").textContent = details.schedule;
+        cardClone.querySelector(".activity-spots").textContent = spotsLeft;
 
-        let participantsHTML = `<ul class='participants-list' style='list-style: none; padding-left: 0;'>`;
+        // 3. Manejar la lista de participantes
+        const ul = cardClone.querySelector(".participants-list");
 
         if (details.participants.length > 0) {
           details.participants.forEach(email => {
-            participantsHTML += `
-              <li class="participant-item" style="display: flex; align-items: center; margin-bottom: 4px;">
-                <span style="flex:1;">${email}</span>
-                <button class="delete-participant-btn" title="Remove" 
-                        data-activity="${name}" 
-                        data-email="${email}" 
-                        style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 18px; margin-left: 8px;">
-                  &#128465;
-                </button>
-              </li>`;
+            // Clonar template de participante
+            const participantClone = participantTemplate.content.cloneNode(true);
+            participantClone.querySelector(".participant-email").textContent = email;
+            
+            // Configurar el botón de borrar
+            const deleteBtn = participantClone.querySelector(".delete-participant-btn");
+            deleteBtn.dataset.activity = name;
+            deleteBtn.dataset.email = email;
+
+            ul.appendChild(participantClone);
           });
         } else {
-          participantsHTML += `<li class='no-participants'>No participants yet</li>`;
+          // Si no hay participantes, clonar el mensaje vacío
+          const noPartClone = noParticipantTemplate.content.cloneNode(true);
+          ul.appendChild(noPartClone);
         }
-        participantsHTML += "</ul>";
 
-        activityCard.innerHTML = `
-          <h3>${name}</h3>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-          <div class="participants-section">
-            <strong>Participants:</strong>
-            ${participantsHTML}
-          </div>
-        `;
+        // 4. Inyectar al DOM
+        activitiesList.appendChild(cardClone);
 
-        activitiesList.appendChild(activityCard);
-
+        // 5. Poblar el Select
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
